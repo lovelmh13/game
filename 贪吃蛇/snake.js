@@ -5,6 +5,7 @@
  * @param {obj} speed 速度
  * @param {number} x 画布x轴大小
  * @param {number} y 画布y轴大小
+ * @param {obj} color 画点的颜色：sanke蛇的颜色，food食物的颜色,white用来掩盖蛇尾的白色
  */
 function Snake(id, score, speed, x, y){
     this.id = document.getElementById(id);
@@ -13,7 +14,12 @@ function Snake(id, score, speed, x, y){
     this.score = document.getElementById(score);
     this.speed = document.getElementById(speed);
     this.x = x;
-    this.y = y;
+	this.y = y;
+	this.color = {
+		snake: "#558B3A",
+        food: "#FFB418",
+        white: "#fff"
+	};
     // 画canvas大小 
     this.id.width = this.x * this.cellWidth;
     console.log(this.id.width);
@@ -39,15 +45,17 @@ Snake.prototype = {
     },
     //初始画蛇
     drawSnake: function() {
-        var snakeArr = this.snakeArr;
+		var snakeArr = this.snakeArr;
+		var color = this.color;
         for(var i=0; i<snakeArr.length; i++){   //遍历蛇的长度，并画出来;通过snakeArr数组里的存的每一个坐标来画出不同的点
-            this.drawRect("#558B3A", snakeArr[i]);
+            this.drawRect(color.snake, snakeArr[i]);
         }
     },
     //初始化食物
     drawFood: function() {
+		var color = this.color;
         var pos = [this.getRandom(this.x), this.getRandom(this.y)]; //随机方块的范围
-        this.drawRect("#FFB418", pos);  
+        this.drawRect(color.food, pos);  
     },
     /**获取方块左上角坐标，用来在画方块的时候给出x,y坐标
      * @param {obj} pos 坐标位置数组
@@ -64,13 +72,26 @@ Snake.prototype = {
         area = this.getRectLeftTopCoordinate(pos);
         this.ctx.fillRect(area[0], area[1], this.cellWidth-1,this.cellWidth-1);    //从每个方块的左上边是坐标；比每个格子小1，就会自然的让每个方块之间有1的距离
     },
-    //蛇的移动
-    //注意！！当moveSnake()加到了setTime()里面，this就不再指向Snake了，而是指向window
-    // setInterval中的回调函数是在全局环境下调用的，因此this指向window
+    /**蛇的移动
+    *注意！！当moveSnake()加到了setTime()里面，this就不再指向Snake了，而是指向window
+	* setInterval中的回调函数是在全局环境下调用的，因此this指向window
+	* snakeHead蛇头位置，也是个[x,y]数组
+	* 思路：把当前蛇头位置的x或y轴+1，然后重新堆入snakeArr尾巴，再把snakeArr的[0]消除,并在画蛇尾的时候，用白色，这样就会让之前画的方块看不见了，避免用clearRect来清除的麻烦，做到看似蛇在往前动的效果
+	*/
     moveSnake: function(){
+		var color = this.color;
+		var snakeArr = this.snakeArr;
         var snakeHead = this.snakeArr[this.snakeArr.length -1 ];
-        // this.snakeArr.push()
+		snakeHead = [snakeHead[0]+1, snakeHead[1]];
+		snakeArr.push(snakeHead);
+		this.drawRect(color.snake,snakeHead);	//push以后一定在重新再画一下，不然没效果!
+		var tail = snakeArr.shift();	//删除蛇尾(上一次的蛇尾，不是当前的蛇尾),当成一个参数传进去，才会保证数组一直是两个，直接把snakeArr.shift()放入drawRect数组里面会有三个数
+		this.drawRect(color.white, tail);	//用白色，这样可以掩盖之前画的蛇尾的颜色，避免用clearRect和save的麻烦
+		// console.log("snakeHead = "+snakeHead);
+        // console.log("tail = "+tail);
+        // console.log("snakeArr = "+snakeArr);
         
+        this.setDirection();
     },
     //控制方向
     setDirection: function() {
@@ -81,13 +102,8 @@ Snake.prototype = {
             this.direction = e.which;
             console.log(this.direction)
         }
-        // this.n += 10;
         switch(this.direction){
             case 39: //右
-                // this.ctx.save();
-                // this.ctx.clearRect()
-                // this.drawSnake(10,0);
-                // console.log("右");
                 this.nextDirection = 1;
                 break;
             case 40: //下
@@ -111,8 +127,10 @@ Snake.prototype = {
         // 2.使用箭头函数，自动绑定当前作用域的this
         (function(theThis){
 			var that = theThis;
-			that.timer = setTimeout(function() {
-				that.moveSnake();			
+			that.timer = setInterval(function() {
+				that.ctx.save();
+				that.moveSnake();	
+				that.ctx.restore();			
 			}, 500);
         })(this);
     },
